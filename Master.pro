@@ -1,25 +1,41 @@
 pro Master
 
+; Close any previously opened file and open a file for the search history
 
-; This first section starts the procedure and ask the user how they would like to proceed. It repeats until the user wants to stop
+close, /all
 
-    repeat begin                                                                                            ; Begins the repeat for the entire file. Repeats until the user chooses to stop
 
-        ; Give the user options for what they want to do
-        print,""
-        print,"Home Menu:"
-        read,choice,prompt="|1 - Search Options|  |2 - Timekeeping Calculations| "                          ; Offer the options for the current menu
+; This begins and repeats the entire procedure until the user wants to stop
+    repeat begin                                                                                            
 
-        ; If Home Menu option 1 is picked do this
-        if choice eq 1 then begin
+    ; Give the user options for what they want to do
+    ; Repeats until the user picks an available option
+
+        repeat begin
             print,""
-            print,"How Would You Like To Search?"
-            read,search_option,prompt="|1 - From A .CSV File|  |2 - Using Observation Time And Date| "
+            print,"Home Menu:"
+            read,choice,prompt="|1 - Search Options|  |2 - Timekeeping Calculations| "
+        endrep until (choice ge 1) && (choice le 2)
+
+    ; If Home Menu option 1 is picked do this
+
+        if choice eq 1 then begin
+            print,"...Accessing Searches..."
+
+        ; Repeats until the user picks an available option
+
+            repeat begin
+                print,""
+                print,"How Would You Like To Search?"
+                read,search_option,prompt="|1 - From A .CSV File|  |2 - Using Observation Time And Date| "
+            endrep until (search_option ge 1) && (search_option le 2)
+
+        ; If Search Menu option 1 is picked do this
 
             if search_option eq 1 then begin
                 print,"Please Pick The .CSV File That You Would Like To Search"
 
-                ; Declarations
+                ; Declarations of variables for the manipulations during the search
 
                     RAh = 0.0
                     RAm = 0.0
@@ -28,18 +44,18 @@ pro Master
                     DecM = 0.0
                     DecS = 0.0
 
-                ; Close any previously opened file and open a file for the search history
+                ; Open a file for the search history
 
-                    close, /all
                     openw,2,'GDLSearch.txt'
 
-                ; Use DIALOG_PICKFILE to locate the file to be used and assign it a name
+                ; Use dialog_pickfile to locate the file to be used and assign it a name
+                ; The name is "user_file" and the filter can be changed to different file types or taken out. "/read" changes the title of the dialog box
 
-                    file = dialog_pickfile(FILTER='*.csv',/read)      ; The name is "file" and the filter can be changed to any file type or taken out. /read changes the title of the dialog box
+                    user_file = dialog_pickfile(FILTER='*.csv',/read)
 
                 ; Read the file in and assign it to the Source_Data variable, assign the header information to variables
 
-                    Source_Data = read_csv(file, COUNT=count, HEADER=SourceHead, N_TABLE_HEADER=0)   
+                    Source_Data = read_csv(user_file, COUNT=count, HEADER=SourceHead, N_TABLE_HEADER=0)   
 
                 ; Take the columns (FIELDS) of the csv and assign them variables for later use
                     
@@ -60,37 +76,40 @@ pro Master
 
                     JOURNAL,"GDLsearchJournal.txt"
 
-                    ; This begins the search process. It repeats the whole process until the user decides to stop
+                ; This begins the search process. It repeats the whole process until the user decides to stop
 
                     repeat begin
 
                         ; Ask user if they want to search by Source Name, RAh, or DecD
+                        ; Repeats until the user picks an available option
 
+                        repeat begin
                             print,""
                             print,"How Would You Like To Search The File? "
-                            print,""
                             read,mode,prompt="|1 = Source Name| |2 = Right Ascension Hours| |3 = Declination Degrees| "
                             print,""
+                        endrep until (mode ge 1) && (mode le 3)
 
-    ; Mode 1 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                    ; Mode 1 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-                        ; This is the code that runs if Mode 1 is selected
+                        ;If Search Mode option 1 is picked do this
                         
                             if mode eq 1 then begin 
 
                             ; Print the list of sources with selector numbers so the user can pick which one they want
+                            ; This section will repeat if the user chooses to
 
                                 repeat begin
                                     for i=0,N_ELEMENTS(Names)-1 do begin
                                         print,i+1," --- ",Names[i]
                                     endfor
 
-                            ; User selects source
+                            ; User selects source from the list
                                     print,""
                                     read,source_selector,prompt="Which Source Would You Like Information For? "
 
-                            ; This question repeats until the user enters a number that is on the list
+                            ; This question repeats until the user enters a number that is on the list.
+                            ; If a number NOT on the list is picked, GDL will produce an error and stop the procedure. This prevents that.
 
                                     repeat begin	
                                         if source_selector gt N_ELEMENTS(Names) then begin
@@ -98,7 +117,8 @@ pro Master
                                         endif
                                     endrep until source_selector le N_ELEMENTS(Names)
 
-                            ; Assign the most recent selected source's data to variables for display
+                            ; Assign the most recent selected source's data to variables for display and calling
+
                                     RAh = RAHs[source_selector-1]
                                     RAm = RAMs[source_selector-1]
                                     RAs = RASs[source_selector-1]
@@ -120,8 +140,10 @@ pro Master
                                     print,""
 
                             ; Identify if the chosen source is a star or constellation
-                                
-                                if (RAm eq 0) and (DecM eq 0) then begin
+                            ; Constellations are not point sources, so their location information is more general without minutes or seconds
+                            ; This tests if the minutes and seconds are 0 in BOTH Dec and RA
+
+                                if (RAm eq 0) && (RAs eq 0) && (DecM) && (DecS) then begin
                                     print,"This Source Is A Constellation!"
                                     print,""
                                 endif else begin
@@ -129,20 +151,13 @@ pro Master
                                     print,""
                                 endelse
 
-
                             ; Allow the user to pick another source until they are satisfied
-
-                                    print,"Would You Like to Pick Another Source From The List? If Not, The Most Recent Values Will Be Stored For Computation. "
-                                    read,cont,prompt="|1 = Yes| |0 = No| "
-                                    print,""
-                            
                             ; Repeat this question until either 1 or 0 is chosen
+
                                     repeat begin	
-                                        if cont gt 1 then begin
-                                            print,"Would You Like to Pick Another Source From The List? If Not, The Most Recent Values Will Be Stored For Computation. "
-                                            read,cont,prompt="|1 = Yes| |0 = No| "
-                                        endif
-                                    endrep until cont le 1
+                                        print,"Would You Like to Pick Another Source From The List? If Not, The Most Recent Values Will Be Stored For Computation. "
+                                        read,cont,prompt="|1 = Yes| |0 = No| "
+                                    endrep until (cont le 1) && (cont ge 0)
 
                                 endrep until cont eq 0              ; End to the repeat loop at the beginning of Mode 1
 
@@ -161,7 +176,8 @@ pro Master
                                 print,""
 
 
-                            ; Print the selected source and its info to the GDLSearch file		
+                            ; Print the selected source and its info to the GDLSearch file. This is not printed to screen.		
+
                                 printf,2,systime()
                                 printf,2,Names[source_selector-1],":"
                                 printf,2,"RAh: ",RAh
@@ -171,15 +187,11 @@ pro Master
                                 printf,2,"DecM: ",DecM
                                 printf,2,"DecS: ",DecS
                                 
-                            ; Save the variables to be called by other procedures
-                                save, RAh,RAm,RAs,DecD,DecM,DecS, FILENAME = 'RefVar.sav'
-
                             endif          ; End if to initialize Mode 1
 
-    ; Mode 2 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                    ; Mode 2 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-                        ; This is the code that runs if Mode 2 is selected
+                        ; If Search Mode 2 is picked do this
 
                             if mode eq 2 then begin
 
@@ -188,7 +200,7 @@ pro Master
                                 read,user_RAh,prompt="What Right Ascension Hour Are You Searching For? "
                                 print,""
 
-                            ; Ask for a search range input and then indicate searching
+                            ; Ask for a search range input and then indicate searching has begun
 
                                 read,user_range,prompt="Please Enter A Plus Or Minus Value For The Search Range. Entering 0 Means Only Exact Matches Will Be Shown. "
                                 print,""
@@ -205,37 +217,42 @@ pro Master
 
                             ; Print titles for the displayed info
 
-                                print," Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
+                                print," Line ------- Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
 
-                            ; Go through DataList and search for RAH minus user_range
-
-                            if user_range gt 0 then begin
-                                search_floor = (user_RAh - user_range)
-
-                                for i=0,N_ELEMENTS(RAHs)-1 do begin
-                                    if RAHs[i] eq search_floor then begin
-                                        RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
-                                        RAAS.add,RAA																; Add them
-                                        NAA.add,Names[i]
-                                        CC.add,Names[i]															; Take all the names that match that data and add them to another temporary list
-                                        RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
-                                    endif
-                                endfor
+                            ; If a range is entered do this
                             
-                                for i=0,N_ELEMENTS(RAHs)-1 do begin
-                                    if (RAHs[i] gt search_floor) && (RAHs[i] lt user_RAh) then begin
-                                        RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
-                                        RAAS.add,RAA																; Add them
-                                        NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
-                                        CC.add,Names[i]	
-                                        RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
-                                    endif
-                                endfor
-                            endif
+                                if user_range gt 0 then begin
+                                    search_floor = (user_RAh - user_range)
+
+                                ; Go through DataList and search for RAH minus user_range
+                                ; Only happens if the user picks a range above 0
+                                ; Goes through the list of RAHs and if the source is a match, it adds it to a main list for display
+
+                                    for i=0,N_ELEMENTS(RAHs)-1 do begin
+                                        if RAHs[i] eq search_floor then begin
+                                            RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
+                                            RAAS.add,RAA																; Add them
+                                            NAA.add,Names[i]
+                                            CC.add,Names[i]															; Take all the names that match that data and add them to another temporary list
+                                            RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
+                                        endif
+                                    endfor
+                                
+                                    for i=0,N_ELEMENTS(RAHs)-1 do begin
+                                        if (RAHs[i] gt search_floor) && (RAHs[i] lt user_RAh) then begin
+                                            RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
+                                            RAAS.add,RAA																; Add them
+                                            NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
+                                            CC.add,Names[i]	
+                                            RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
+                                        endif
+                                    endfor
+                                endif
 
                             ; Go through DataList and search for matching RAHs
+                            ; Goes through the list of RAHs and if the source is a match, it adds it to a main list for display
 
                                 for i=0,N_ELEMENTS(RAHs)-1 do begin
                                     if RAHs[i] eq user_RAh then begin
@@ -249,42 +266,48 @@ pro Master
                                 endfor
 
                             ; Go through DataList and search for RAH plus user_range
+                            ; Goes through the list of RAHs and if the source is a match, it adds it to a main list for display
+                            ; Only happens if the user picks a range above 0
 
-                            if user_range gt 0 then begin 
-                                search_ceiling = (user_RAh + user_range)
+                                if user_range gt 0 then begin 
+                                    search_ceiling = (user_RAh + user_range)
 
-                                for i=0,N_ELEMENTS(RAHs)-1 do begin
-                                    if (RAHs[i] gt user_RAh) && (RAHs[i] lt search_ceiling) then begin
-                                        RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
-                                        RAAS.add,RAA																; Add them
-                                        NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
-                                        CC.add,Names[i]	
-                                        RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(RAHs)-1 do begin
+                                        if (RAHs[i] gt user_RAh) && (RAHs[i] lt search_ceiling) then begin
+                                            RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
+                                            RAAS.add,RAA																; Add them
+                                            NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
+                                            CC.add,Names[i]	
+                                            RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
+                                        endif
+                                    endfor
 
-                                for i=0,N_ELEMENTS(RAHs)-1 do begin
-                                    if RAHs[i] eq search_ceiling then begin
-                                        RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
-                                        RAAS.add,RAA																; Add them
-                                        NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
-                                        CC.add,Names[i]	
-                                        RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
-                                    endif
-                                endfor
-                            endif
+                                    for i=0,N_ELEMENTS(RAHs)-1 do begin
+                                        if RAHs[i] eq search_ceiling then begin
+                                            RAA = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]                  ; Take only the number columns and add them to a temporary list
+                                            RAAS.add,RAA																; Add them
+                                            NAA.add,Names[i]															; Take all the names that match that data and add them to another temporary list
+                                            CC.add,Names[i]	
+                                            RALS = list(Names[i],RAA,/EXTRACT)											; Combine the lists to show user's search results and provide a count
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]			; Print user's search results
+                                        endif
+                                    endfor
+                                endif
 
                             ; Counts the temporary lists to make sure they have stuff in them and prints communications
 
                                 RC = RALS.count()
                                 Counter = CC.count()
 
-                                if RC lt 1 then begin                             ; If there are no matches
+                            ; If there are no matches do this
+
+                                if RC lt 1 then begin
                                     print,"Sorry. No Matches."
                                     print,""
                                 endif
+
+                            ; If the user entered a number that can not be an RAH do this
 
                                 if user_RAh gt 23 then begin						; If the user enters a number bigger than 23.99, explain why that isn't allowed
                                     print,"Right Ascension Hours Go From 1 - 23.99"
@@ -293,15 +316,18 @@ pro Master
 
                             ; If there are matches, ask the user to pick one to proceed with
 
-
                                 if	RC ge 1 then begin								
                                     print,""
+                                
+                                ; Repeats until the user has picked a line number on the list
+
                                     repeat begin
-                                        read,line_selector,prompt="Which Line Would You Like to Proceed With? "
+                                        read,line_selector,prompt="Which Line Number Would You Like to Proceed With? "
                                         print,""
                                     endrep until line_selector le Counter
 
-                                ; Assign the most recent selected source's data to variables for display
+                                ; Assign the most recent selected source's data to variables for display and calling
+
                                     RAh = RAAS[line_selector - 1,0]
                                     RAm = RAAS[line_selector - 1,1]
                                     RAs = RAAS[line_selector - 1,2]
@@ -324,8 +350,10 @@ pro Master
                                     print,""
 
                                 ; Identify if the chosen source is a star or constellation
-                                    
-                                    if (RAm eq 0) and (DecM eq 0) then begin
+                                ; Constellations are not point sources, so their location information is more general without minutes or seconds
+                                ; This tests if the minutes and seconds are 0 in BOTH Dec and RA
+
+                                    if (RAm eq 0) && (RAs eq 0) && (DecM) && (DecS) then begin
                                         print,"This Source Is A Constellation!"
                                         print,""
                                     endif else begin
@@ -343,20 +371,19 @@ pro Master
                                     printf,2,"DecD: ",DecD
                                     printf,2,"DecM: ",DecM
                                     printf,2,"DecS: ",DecS
-                                ; Save the variables to be called by other procedures
-                                    save, RAh,RAm,RAs,DecD,DecM,DecS, FILENAME = "RefVar.txt"
-                                endif
+
+                                endif           ; End if for when there are matches to display
 
                             endif			; End if mode 2 is selected
 
-    ; Mode 3 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-                    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                    ; Mode 3 Selected ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-                        ; This is the code that runs if Mode 1 is selected
+                        ; If Search Mode 3 is selected do this
 
                             if mode eq 3 then begin
 
                             ; Ask the user what Dec Degrees they want
+
                                 read,user_DecD,prompt="What Declination Degrees Are You Searching For? "
                                 print,""
 
@@ -376,103 +403,114 @@ pro Master
                                 CC = list()
 
 
-                            ; Print titles
+                            ; Print titles for display
 
-                                print," Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
+                                print," Line ------- Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
 
+                            ; If a range is entered do this
 
-                            ; Go through DataList and search for DECDs minus user_range
+                                if user_range gt 0 then begin
+                                    search_floor = (user_DecD - user_range)
 
-                            if user_range gt 0 then begin
-                                search_floor = (user_DecD - user_range)
+                                ; Go through DataList and search for DecD minus user_range
+                                ; Only happens if the user picks a range above 0
+                                ; Goes through the list of DecDs and if the source is a match, it adds it to a main list for display
 
-                                for i=0,N_ELEMENTS(DECDs)-1 do begin
-                                    if DECDs[i] eq search_floor then begin
-                                        DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
-                                        DLLS.add,DLL															; Add them to a temporary list
-                                        NAAS.add,Names[i]														; Add the names to a temporary list
-                                        CC.add,Names[i]
-                                        DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(DECDs)-1 do begin
+                                        if DECDs[i] eq search_floor then begin
+                                            DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
+                                            DLLS.add,DLL															; Add them to a temporary list
+                                            NAAS.add,Names[i]														; Add the names to a temporary list
+                                            CC.add,Names[i]
+                                            DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
+                                        endif
+                                    endfor
 
-                                for i=0,N_ELEMENTS(DECDs)-1 do begin
-                                    if (DECDs[i] gt search_floor) && (DECDs[i] lt user_DecD) then begin
-                                        DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
-                                        DLLS.add,DLL															; Add them to a temporary list
-                                        NAAS.add,Names[i]														; Add the names to a temporary list
-                                        CC.add,Names[i]
-                                        DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(DECDs)-1 do begin
+                                        if (DECDs[i] gt search_floor) && (DECDs[i] lt user_DecD) then begin
+                                            DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
+                                            DLLS.add,DLL															; Add them to a temporary list
+                                            NAAS.add,Names[i]														; Add the names to a temporary list
+                                            CC.add,Names[i]
+                                            DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
+                                        endif
+                                    endfor
 
-                            endif
+                                endif
 
                             ; Go through DataList and search for DECDs that match the users search
+                            ; Goes through the list of DecDs and if the source is a match, it adds it to a main list for display
 
-                                for i=0,N_ELEMENTS(DECDs)-1 do begin
-                                    if DECDs[i] eq user_DecD then begin
-                                        DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
-                                        DLLS.add,DLL															; Add them to a temporary list
-                                        NAAS.add,Names[i]														; Add the names to a temporary list
-                                        CC.add,Names[i]
-                                        DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(DECDs)-1 do begin
+                                        if DECDs[i] eq user_DecD then begin
+                                            DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
+                                            DLLS.add,DLL															; Add them to a temporary list
+                                            NAAS.add,Names[i]														; Add the names to a temporary list
+                                            CC.add,Names[i]
+                                            DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
+                                        endif
+                                    endfor
 
-                            ; Go through DataList and search for DECDs plus user_range
+                            ; Go through DataList and search for DecD minus user_range
+                            ; Only happens if the user picks a range above 0
+                            ; Goes through the list of DecDs and if the source is a match, it adds it to a main list for display
 
-                            if user_range gt 0 then begin
-                                search_ceiling = (user_DecD + user_range)
+                                if user_range gt 0 then begin
+                                    search_ceiling = (user_DecD + user_range)
 
-                                for i=0,N_ELEMENTS(DECDs)-1 do begin
-                                    if (DECDs[i] gt user_DecD) && (DECDs[i] lt search_ceiling) then begin
-                                        DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
-                                        DLLS.add,DLL															; Add them to a temporary list
-                                        NAAS.add,Names[i]														; Add the names to a temporary list
-                                        CC.add,Names[i]
-                                        DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(DECDs)-1 do begin
+                                        if (DECDs[i] gt user_DecD) && (DECDs[i] lt search_ceiling) then begin
+                                            DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
+                                            DLLS.add,DLL															; Add them to a temporary list
+                                            NAAS.add,Names[i]														; Add the names to a temporary list
+                                            CC.add,Names[i]
+                                            DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
+                                        endif
+                                    endfor
 
-                                for i=0,N_ELEMENTS(DECDs)-1 do begin
-                                    if DECDs[i] eq search_ceiling then begin
-                                        DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
-                                        DLLS.add,DLL															; Add them to a temporary list
-                                        NAAS.add,Names[i]														; Add the names to a temporary list
-                                        CC.add,Names[i]
-                                        DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
-                                        print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
-                                    endif
-                                endfor
+                                    for i=0,N_ELEMENTS(DECDs)-1 do begin
+                                        if DECDs[i] eq search_ceiling then begin
+                                            DLL = [RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]]				; Take only the numbers from the list and arrange them to be checked and displayed
+                                            DLLS.add,DLL															; Add them to a temporary list
+                                            NAAS.add,Names[i]														; Add the names to a temporary list
+                                            CC.add,Names[i]
+                                            DecDL = list(Names[i],DLL,/EXTRACT)										; Combine the temporary lists
+                                            print,Names[i],RAHs[i],RAMs[i],RASs[i],DECDs[i],DECMs[i],DECSs[i]		; Print the matches for the users search
+                                        endif
+                                    endfor
 
-                            endif
+                                endif
                             
                             ; Test to make sure there are matches to the users search
 
                                 DL = DecDL.count()
                                 Counter = CC.count()
 
-                                if DL lt 1 then begin										; If there are no matches
+                            ; If there are no matches do this
+
+                                if DL lt 1 then begin
                                     print,"Sorry. No Matches."
                                     print,""
                                 endif
 
                             ; If there are matches, ask the user to pick one to proceed with
 
-
                                 if	DL ge 1 then begin								
                                     print,""
+
+                                ; Repeats until the user picks a line that is displayed
+
                                     repeat begin
                                         read,line_selector,prompt="Which Line Would You Like to Proceed With? "
                                         print,""
                                     endrep until line_selector le Counter
 
-                                    ; Assign the most recent selected source's data to variables for display
+                                ; Assign the most recent selected source's data to variables for display and calling
+
                                     RAh = DLLS[line_selector - 1,0]
                                     RAm = DLLS[line_selector - 1,1]
                                     RAs = DLLS[line_selector - 1,2]
@@ -480,7 +518,7 @@ pro Master
                                     DecM = DLLS[line_selector - 1,4]
                                     DecS = DLLS[line_selector - 1,5]
 
-                                    ; Print the final choice from user and indicate the next step is being started
+                                ; Print the final choice from user and indicate the next step is being started
 
                                     print,""
                                     print,"Proceeding with: "
@@ -496,8 +534,10 @@ pro Master
                                     print,""
 
                                 ; Identify if the chosen source is a star or constellation
-                                    
-                                    if (RAm eq 0) and (DecM eq 0) then begin
+                                ; Constellations are not point sources, so their location information is more general without minutes or seconds
+                                ; This tests if the minutes and seconds are 0 in BOTH Dec and RA
+
+                                    if (RAm eq 0) && (RAs eq 0) && (DecM) && (DecS) then begin
                                         print,"This Source Is A Constellation!"
                                         print,""
                                     endif else begin
@@ -516,24 +556,23 @@ pro Master
                                     printf,2,"DecM: ",DecM
                                     printf,2,"DecS: ",DecS
 
-                                ; Save the variables to be called by other procedures
-                                    save, RAh,RAm,RAs,DecD,DecM,DecS, FILENAME = "RefVar.txt"
                                 endif
-
-
-                                
+            
                             endif   ; End if mode 3 is selected
 
                 ; Ask the user if they want to start over and search again
 
-                    print,"Would You Like To Start The Search Over Again?"
-                    read,end_Ref4,prompt="|1 = Yes| |0 = No| "
+                        repeat begin
+                            print,"Would You Like To Start The Search Over Again?"
+                            read,end_Ref4,prompt="|1 = Yes| |0 = No| "
+                        endrep until (end_Ref4 le 1) && (end_Ref4 ge 0)
 
                     endrep until end_Ref4 eq 0				; End repeat from very beginning if user chooses not to start over
 
                     JOURNAL								; End journal entries
 
-                ; Make sure the user knows where to find the files that log what happened in their session. Warn them that they will be overwritten with every new session
+                ; Makes sure the user knows where to find the files that log what happened in their session
+                ; Warn them that they will be overwritten with every new session
 
                     print,""
                     print,"***"
@@ -543,12 +582,18 @@ pro Master
                     print,"***"
                     print,""
 
-                ; End the program
+                ; End the search
                     print,"End Search."
                     print,""
-            endif
+
+            endif                           ; End if for .csv search option
+
+        ; If Search Option 2 is picked do this
 
             if search_option eq 2 then begin
+
+            ; Repeats this question until one of the options is picked
+
                 repeat begin
                     print,""
                     print,"Is The Observation Date During Daylight Savings Time? "
@@ -556,30 +601,42 @@ pro Master
                     print,""
                 endrep until (time_mode le 1) && (time_mode ge 0)
 
+                ; If Time Mode is 0 do this
+
                     if time_mode eq 0 then begin
+
+                    ; Ask for the hour of observation to calculate HA of the Mean Sun
 
                         read,MST,prompt="What Is The Hour Of Observation In 24-hr Format? "
                         print,""
 
                         HAms = MST - 12
                         
+                    ; Find RAms for this observation date
 
-                        ; Find RAms
-                        repeat begin
+                        repeat begin                            ; Repeats the RA calculation section until the user wants to stop
+
+                        ; Repeats this question until the user picks one of the options
+
                             repeat begin
                                 print,"How Would You Like To Calculate Right Ascension Of The Mean Sun?"
                                 read,search_mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
                                 print,""
-                            endrep until search_mode le 2 && search_mode ge 1                                 ; The beginning question repeats until one of the available choices is picked
+                            endrep until search_mode le 2 && search_mode ge 1
 
 
-                                ; If search_mode 1 is picked do this
+                            ; If search_mode 1 is picked do this
+
                                 if search_mode eq 1 then begin 
+
+                                ; User inputs for calculation
 
                                     read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
                                     print,""
                                     RA = 18.62 + (.0657 * t)
 
+                                ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
+
                                     if RA gt 24 then begin
                                         new_RA = RA - 24
                                         print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
@@ -587,21 +644,30 @@ pro Master
                                         RAms = new_RA
                                     endif
 
+
+                                ; Prints the RA if it is less than 24
+
                                     if RA le 24 then begin
                                     print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
                                         print,""
                                         RAms = RA
                                     endif
-                                endif
+
+                                endif           ; End if for Search Mode 1
                                 
 
-                                ; If search_mode 2 is picked, do this
+                            ; If search_mode 2 is picked, do this
+
                                 if search_mode eq 2 then begin
+
+                                ; User inputs for calculation
 
                                     read,tv,prompt="How Many Days Since The Vernal Equinox? "
                                     print,""
                                     RA = 0.0 + (24.0/365.0) * tv
 
+                                ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
+
                                     if RA gt 24 then begin
                                         new_RA = RA - 24
                                         print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
@@ -609,61 +675,88 @@ pro Master
                                         RAms = new_RA
                                     endif
 
+                                ; Prints the RA if it is less than 24
+
                                     if RA le 24 then begin
                                     print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
                                         print,""
                                         RAms = RA
                                     endif
-                                endif
 
-                                print,"Would You Like To Calculate A New RA?"
-                                read,end_RASun,prompt="|1 = Yes| |0 = No| "
-                                print,""
+                                endif               ; End if for Search Mode 1
 
-                        endrep until end_RASun eq 0
+                            ; Repeats question until one of the choices is picked
 
+                                repeat begin
+                                    print,"Would You Like To Calculate A New RA?"
+                                    read,end_RASun,prompt="|1 = Yes| |0 = No| "
+                                    print,""
+                                endrep until end_RASun le 1
+
+                        endrep until end_RASun eq 0             ; End RASun calculation
+
+                        ; Calculates the Local Sidereal Time for the observation date and time
 
                             LST = RAms + HAms
+
+                        ; Displays the information calculated
 
                             print,"The Local Sidereal Time Is: ",LST
                             print,""
 
+                        ; Adds and subtracts 6 hours to the RA hour.
+                        ; The calculated RA will be transiting the meridian so adding and subtracting 6 will give the RA values on the horizon to the east and west
+
                             RA_w = LST - 6
-
-
                             RA_e = LST + 6
+
+                        ; Shows the RA hours on the horizon
 
                             print,"Looking South At This Time, Sources With An RA Hour Between The Following Two Values Will Be Visible. "
                             print,"RA To The East ",floor(RA_e)
                             print,"RA To The West ",floor(RA_w)
-                    endif
+
+                    endif               ; Ends if the observation is not in Daylight Saving Time
+
+                ; If Time Mode 1 is picked do this
 
                     if time_mode eq 1 then begin
+
+                    ; User inputs for calculation
 
                         read,MST,prompt="What Is The Hour Of Observation In 24-hr Format? "
                         print,""
 
-                        DST = MST + 1
+                    ; If Daylight Saving Time is being observed, the time is one hour ahead of MST and a conversion is needed
 
+                        DST = MST + 1
                         HAms = DST - 13
                         
 
-                        ; Find RAms
+                    ; Calculate RA of the Mean Sun and repeat until the user doesn't want to calculate a new one
+
                         repeat begin
+
+                        ; Repeats the question until one of the choices is picked
+
                             repeat begin
                                 print,"How Would You Like To Calculate Right Ascension Of The Mean Sun?"
                                 read,search_mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
                                 print,""
-                            endrep until search_mode le 2 && search_mode ge 1                                 ; The beginning question repeats until one of the available choices is picked
+                            endrep until search_mode le 2 && search_mode ge 1
 
+                            ; If search_mode 1 is picked do this
 
-                                ; If search_mode 1 is picked do this
                                 if search_mode eq 1 then begin 
+                                
+                                ; User inputs for calculation
 
                                     read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
                                     print,""
                                     RA = 18.62 + (.0657 * t)
 
+                                ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
+
                                     if RA gt 24 then begin
                                         new_RA = RA - 24
                                         print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
@@ -671,178 +764,276 @@ pro Master
                                         RAms = new_RA
                                     endif
 
+                                ; Prints the RA if it is less than 24
+
                                     if RA le 24 then begin
-                                    print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
+                                        print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
                                         print,""
                                         RAms = RA
                                     endif
-                                endif
+
+                                endif               ; End if Search Mode 1 is picked
                                 
 
                                 ; If search_mode 2 is picked, do this
-                                if search_mode eq 2 then begin
 
-                                    read,tv,prompt="How Many Days Since The Vernal Equinox? "
-                                    print,""
-                                    RA = 0.0 + (24.0/365.0) * tv
+                                    if search_mode eq 2 then begin
 
-                                    if RA gt 24 then begin
-                                        new_RA = RA - 24
-                                        print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
+                                    ; User inputs for calculation
+
+                                        read,tv,prompt="How Many Days Since The Vernal Equinox? "
                                         print,""
-                                        RAms = new_RA
-                                    endif
+                                        RA = 0.0 + (24.0/365.0) * tv
 
-                                    if RA le 24 then begin
-                                    print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
-                                        print,""
-                                        RAms = RA
-                                    endif
-                                endif
+                                ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
 
+                                        if RA gt 24 then begin
+                                            new_RA = RA - 24
+                                            print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
+                                            print,""
+                                            RAms = new_RA
+                                        endif
+
+                                ; Prints the RA if it is less than 24
+
+                                        if RA le 24 then begin
+                                            print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
+                                            print,""
+                                            RAms = RA
+                                        endif
+
+                                    endif               ; End if Search Mode 2 is picked
+
+                        ; Repeats this question until the user picks a choice that is available
+                            repeat begin
                                 print,"Would You Like To Calculate A New RA?"
                                 read,end_RASun,prompt="|1 = Yes| |0 = No| "
                                 print,""
+                            endrep until end_RASun le 1
 
-                        endrep until end_RASun eq 0
+                        endrep until end_RASun eq 0         ; Ends the RASun calculation
 
-                            print,HAms
+                        ; Calculates Local Sidereal Time for observation date and time
 
                             LST = RAms + HAms
+
+                        ; Displays the information calculated
 
                             print,"The Local Sidereal Time Is: ",LST
                             print,""
 
+                        ; Adds and subtracts 6 hours to the RA hour.
+                        ; The calculated RA will be transiting the meridian so adding and subtracting 6 will give the RA values on the horizon to the east and west
+
                             RA_w = LST - 6
-
-
                             RA_e = LST + 6
+
+                        ; Shows the RA hours on the horizon
 
                             print,"Looking South At This Time, Sources With An RA Hour Between The Following Two Values Will Be Visible. "
                             print,""
                             print,"RA To The East ",RA_e
                             print,"RA To The West ",RA_w
                             print,""
-                    endif
-            endif
+                    endif               ; End if Time Mode 1 is picked
 
+            endif                       ; End if Search Option 2 is picked
+
+        repeat begin
             print,"Would You Like To Return To The Home Menu?"
             read,over,prompt="|1 - Yes| |0 - No| "
-        endif
+        endrep until over le 1
 
-        ; If option 2 is picked do this
+        endif           ; End if for Home Menu option 1
+
+    ; If Home Menu option 2 is picked do this
+
         if choice eq 2 then begin
+
+        ; Prints something to make the user experience a bit better
+
             print,""
             print,"...Accessing Calculations..."                  ; User experience
             print,""
 
-            ; Show options for what the user can calculate
-            print,"What Would You Like To Calculate?"
-            read,mode,prompt="|1 - Day of Year|  |2 - Declination of the Mean Sun|  |3 - Right Ascension of the Mean Sun| "
-            print,""
+        ; Show options for what the user can calculate
+        ; Repeats until one of the options is picked
 
-            ; If mode 1 is picked do this
+            repeat begin
+                print,"What Would You Like To Calculate?"
+                read,mode,prompt="|1 - Day of Year|  |2 - Declination of the Mean Sun|  |3 - Right Ascension of the Mean Sun| "
+                print,""
+            endrep until (mode ge 1) && (mode le 3)
+
+        ; If Calculation Mode 1 is picked do this
+
             if mode eq 1 then begin
                 
+            ; Repeats mode 1 until the user wants to stop
+
                 repeat begin
 
-                ; Input Date
+                ; Input Month
+                ; Repeats until the user enters a number that corresponds to a month
 
                     repeat begin
                         read,Mon,prompt="Enter Month in MM Format: "
                         print,""
                     endrep until (Mon gt 0) && (Mon le 12)
 
+                ; Input Date
+                ; Repeats until the user enters a number that corresponds to a date
+
                     repeat begin
                         read,Date,prompt="Enter Date in DD Format: "
                         print,""
                     endrep until (Date gt 0) && (Date le 31)
 
-                ; Determine Day
+                ; Create arrays to determine the day of the year
 
                     ; Months Array
-                        rmonths=['January','February','March','April','May','June','July','August','September','October','November','December']
-                        x = Mon-1
+                        ;rmonths=['January','February','March','April','May','June','July','August','September','October','November','December']
                         
                     ; Days Array
-                        days=[1:31]
+                        ;days=[1:31]
 
                 ; Determine the day of the year from the date
 
-                        DoY=0
-                        DoMon=[0,31,59,90,120,151,181,212,243,273,304,334]
+                    DoY=0
+                
+                ; Creates an array that contains the day numbers of the firsts of each month to calculate the day of the year
+                
+                    DoMon=[0,31,59,90,120,151,181,212,243,273,304,334]
 
-                        DoY=DoMon[Mon-1] + Date
+                ; Calculates the day of the year
 
-                        print,"The Day Of The Year is: ",DoY
-                        print,""
+                    DoY=DoMon[Mon-1] + Date
 
+                ; display the calculated day of the year 
+
+                    print,"The Day Of The Year is: ",DoY
+                    print,""
+
+                ; Repeats the question until the user picks one of the options
+
+                    repeat begin
                         print,"Would You Like To Calculate Again?"
                         read,end_DOY,prompt="|1 = Yes| |0 = No| "
                         print,""
+                    endrep until end_DOY le 1
 
-                endrep until end_DOY eq 0
+                endrep until end_DOY eq 0               ; End DOY calculation
 
 
-            endif
+            endif                   ; End if Calculation Mode 1 is picked
             
-            ; If mode 2 is picked do this
+        ; If Calculation Mode 2 is picked do this
+
             if mode eq 2 then begin
-               
+            
+            ; Repeats the beginning question until one of the choices is picked
+
                 repeat begin
+
+                ; Repeats the calculation until the user wants to stop
 
                     repeat begin
 
-                        print,"How Would You Like To Calculate Declination Of The Mean Sun?"
-                        read,mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
-                        print,""
+                    ; Offer choices for how to calculate Dec of the Mean Sun
 
-                        ; If mode 1 is picked then do this
-                        if mode eq 1 then begin 
-                            read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
+                        repeat begin
+                            print,"How Would You Like To Calculate Declination Of The Mean Sun?"
+                            read,mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
                             print,""
+                        endrep until (mode le 2) && (mode ge 1)
+
+                    ; If mode 1 is picked then do this
+
+                        if mode eq 1 then begin
+
+                        ; user inputs for calculation
+
+                            repeat begin
+                                read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
+                                print,""
+                            endrep until (t ge 1) && (t le 365)
+                        
+                        ; Calculate Dec of the Mean Sun and display
+
                             Dec = 23.5*sin((2*!pi/365)*(t-79))
                             print,"Declination Of The Mean Sun On This Day Is: ", Dec
                             print,""
-                        endif
 
-                        ; If mode 2 is picked then do this
+                        endif               ; End if mode 1 is picked
+
+                    ; If mode 2 is picked then do this
+
                         if mode eq 2 then begin
+
+                        ; User inputs for calculation
+
                             read,tv,prompt="How Many Days Since The Vernal Equinox? "
                             print,""
+
+                        ; Calculate Dec of the Mean Sun and display
+
                             Dec = 23.5*sin((2*!pi/365)*tv)
                             print,"Declination Of The Mean Sun On This Day Is: ", Dec
                             print,""
-                        endif
 
-                        print,"Would You Like To Calculate Again?"
-                        read,end_DecSun,prompt="|1 = Yes| |0 = No| "
-                        print,""
+                        endif               ; End if mode 2 is picked
 
-                    endrep until end_DecSun eq 0
+                    ; Repeats the question until the user picks an available option
+
+                        repeat begin
+                            print,"Would You Like To Calculate Again?"
+                            read,end_DecSun,prompt="|1 = Yes| |0 = No| "
+                            print,""
+                        endrep until end_DecSun le 1
+
+                    endrep until end_DecSun eq 0            ; End repeat for DecSun calculation
                 
-                ; Repeats the mode selection until the user picks an available mode
-                endrep until mode le 2 && mode ge 1
+                endrep until mode le 2 && mode ge 1             ; End repeat to make sure user picks an available option
 
 
-            endif
+            endif                   ; End if mode 2 is picked
 
-            ; If mode 3 is picked do this
+        ; If Calculation Mode 3 is picked do this
+
             if mode eq 3 then begin
-                
-                repeat begin
-                    repeat begin
-                        print,"How Would You Like To Calculate Right Ascension Of The Mean Sun?"
-                        read,mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
-                        print,""
+            
+            ; Repeats until one of the available options is picked
 
-                                        ; If mode 1 is picked do this
+                repeat begin
+
+                ; Repeats until the calculation until the user wants to stop
+
+                    repeat begin
+
+                    ; Offer options for how to calculate RA of the Mean Sun
+
+                        repeat begin
+                            print,"How Would You Like To Calculate Right Ascension Of The Mean Sun?"
+                            read,mode,prompt="|1 = Using Day Of The Julian Calendar| |2 = Using Days Since Vernal Equinox| "
+                            print,""
+                        endrep until (mode ge 1) && (mode le 2)
+
+                        ; If mode 1 is picked do this
+
                             if mode eq 1 then begin 
-                                ;t = 0.0
-                                read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
-                                print,""
+                            
+                            ; User inputs for calculation
+
+                                repeat begin
+                                    read,t,prompt="What Day Of The Julian Calendar Would You Like To Use? "
+                                    print,""
+                                endrep until (t ge 1) && (t le 365)
+
+                            ; Calculate RA of the Mean Sun
                                 RA = 18.62 + (.0657 * t)
 
+                            ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
+
                                 if RA gt 24 then begin
                                     new_RA = RA - 24
                                     print,"Right Ascension Of The Mean Sun On This Day Is: ", (new_RA)
@@ -850,20 +1041,31 @@ pro Master
                                     RAms = new_RA
                                 endif
 
+                            ; Prints the RA if it is less than 24
+
                                 if RA le 24 then begin
                                 print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
                                     print,""
                                     RAms = RA
                                 endif
-                            endif
+
+                            endif           ; End if for mode 1 
                             
 
-                            ; If mode 2 is picked, do this
+                        ; If mode 2 is picked, do this
+
                             if mode eq 2 then begin
-                                ;tv = 0.0
+
+                            ; User inputs for calculation
+
                                 read,tv,prompt="How Many Days Since The Vernal Equinox? "
                                 print,""
+
+                            ; Calculate RA of the Mean Sun
+
                                 RA = 0.0 + (24.0/365.0) * tv
+
+                            ; If the RA is bigger than 24, it has gone around the entire CE and must have 24 subtracted from it. Do this
 
                                 if RA gt 24 then begin
                                     new_RA = RA - 24
@@ -872,45 +1074,46 @@ pro Master
                                     RAms = new_RA
                                 endif
 
+                            ; Prints the RA if it is less than 24
+
                                 if RA le 24 then begin
                                 print,"Right Ascension Of The Mean Sun On This Day Is: ", RA
                                     print,""
                                     RAms = RA
                                 endif
-                            endif
 
-                        print,"Would You Like To Calculate Again?"
-                        read,end_RASun,prompt="|1 = Yes| |0 = No| "
-                        print,""
+                            endif           ; End if mode 2 is picked
 
-                    endrep until end_RASun eq 0
+                        repeat begin
+                            print,"Would You Like To Calculate Again?"
+                            read,end_RASun,prompt="|1 = Yes| |0 = No| "
+                            print,""
+                        endrep until end_RASun le 1
 
+                    endrep until end_RASun eq 0             ; End repeat for RASun calculation
 
-                    ; The beginning question repeats until one of the available choices is picked
-                endrep until mode le 2 && mode ge 1
+                endrep until mode le 2 && mode ge 1         ; End repeat for the beginning question
 
-            endif
+            endif                           ; End if mode 3 is picked
 
+        ; Ask the user if they want to start over
+        ; Repeats until the user picks an available option
 
-            ; Ask the user is they want to start over
-            print,"Would You Like To Return To The Home Menu?"
-            read,over,prompt="|1 - Yes| |0 - No| "
-        endif
-    endrep until over eq 0
+            repeat begin
+                print,"Would You Like To Return To The Home Menu?"
+                read,over,prompt="|1 - Yes| |0 - No| "
+            endrep until (over le 1) && (over ge 0)
+
+        endif                       ; End if for Home Menu choice 2
+
+    endrep until over eq 0          ; End repeat for the entire procedure
 
     ; Confirming end
-    print,"End Procedure."
+
     print,""
-
-
-
-
-
-
-
-
-
-
-
+    print,"Thank You For Using The Ursinus GDL Library! This Is An Open Source Project And Contributions Are Welcome! "
+    print,"To Contribute Code Please Contact Ursinus College, Department of Physics and Astronomy To Ask How!"
+    print,""
+    print,"End Procedure."
 
 end
