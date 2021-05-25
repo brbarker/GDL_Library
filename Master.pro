@@ -1,6 +1,43 @@
 pro Master
 
-; Close any previously opened file and open a file for the search history
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; This is the GDL library created for Ursinus College Summer Fellows Program.
+; 
+; Useful abbreviations to know:
+;       - RA = Right Ascension
+;       - RAh = Right Ascension Hour(s)
+;       - RAm = Right Ascension Minute(s)
+;       - RAs = Right Ascension Second(s)
+;
+;       - Dec = Declination
+;       - DecD = Declination Degrees
+;       - DecM = Declination Minutes
+;       - DecS = Declination Seconds
+;
+; It contains a search feature with two options:
+;       - Search a .CSV file
+;               - The .CSV file columns must have the following format to be read properly:
+;                       - Source Name, RAh, RAm, RAs, DecD, DecM, DecS
+;       - Searching with Observation Time and Date
+;
+; It contains a calculation feature with three options:
+;       - Calculate Day of the Year, also known as Day of the Julian Calendar
+;       - Calculate Declination of the Mean Sun using either:
+;               - Day of the Julian Calendar
+;               - Days since Vernal Equinox
+;       - Calculate Right Ascension of the Mean Sun using either:
+;               - Day of the Julian Calendar
+;               - Days since Vernal Equinox
+;
+;
+;
+;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+
+; Close any previously opened file
 
 close, /all
 
@@ -888,14 +925,6 @@ close, /all
                         read,Date,prompt="Enter Date in DD Format: "
                         print,""
                     endrep until (Date gt 0) && (Date le 31)
-
-                ; Create arrays to determine the day of the year
-
-                    ; Months Array
-                        ;rmonths=['January','February','March','April','May','June','July','August','September','October','November','December']
-                        
-                    ; Days Array
-                        ;days=[1:31]
 
                 ; Determine the day of the year from the date
 
