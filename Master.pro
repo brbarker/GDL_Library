@@ -30,8 +30,8 @@ pro Master
 ;               - Day of the Julian Calendar
 ;               - Days since Vernal Equinox
 ;
-;
-;
+; Latest Update Date: 5-25-2021
+; Latest Update Contributor: Brian Barker
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
