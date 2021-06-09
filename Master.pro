@@ -51,7 +51,7 @@ close, /all
         repeat begin
             print,""
             print,"Home Menu:"
-            read,choice,prompt="|1 - Search Options|  |2 - Timekeeping Calculations| "
+            read,choice,prompt="|1 - Search Options|  |2 - Calculations| "
         endrep until (choice ge 1) && (choice le 2)
 
     ; If Home Menu option 1 is picked do this
@@ -65,12 +65,14 @@ close, /all
                 print,""
                 print,"How Would You Like To Search?"
                 read,search_option,prompt="|1 - From A .CSV File|  |2 - Using Observation Time And Date| "
+                print,""
             endrep until (search_option ge 1) && (search_option le 2)
 
         ; If Search Menu option 1 is picked do this
 
             if search_option eq 1 then begin
                 print,"Please Pick The .CSV File That You Would Like To Search"
+                print,""
 
                 ; Declarations of variables for the manipulations during the search
 
@@ -111,7 +113,7 @@ close, /all
 
                 ; This command will provide a readout of what is printed to the screen for the entire process until it is ended so there is a record.
 
-                    JOURNAL,"GDLsearchJournal.txt"
+                    ;JOURNAL,"GDLsearchJournal.txt"
 
                 ; This begins the search process. It repeats the whole process until the user decides to stop
 
@@ -192,26 +194,12 @@ close, /all
                             ; Repeat this question until either 1 or 0 is chosen
 
                                     repeat begin	
-                                        print,"Would You Like to Pick Another Source From The List? If Not, The Most Recent Values Will Be Stored For Computation. "
+                                        print,"Would You Like to Pick Another Source From The List? "
                                         read,cont,prompt="|1 = Yes| |0 = No| "
+                                        print,""
                                     endrep until (cont le 1) && (cont ge 0)
 
                                 endrep until cont eq 0              ; End to the repeat loop at the beginning of Mode 1
-
-                            ; Print the final choice from user and indicate the next step is being started
-
-                                print,""
-                                print,"Proceeding with: "
-                                print,Names[source_selector-1]
-                                print,""
-                                print,"RA Hr: ",RAh
-                                print,"RA Min: ",RAm
-                                print,"RA Sec: ",RAs
-                                print,"Dec Deg: ",DecD
-                                print,"Dec Min: ",DecM
-                                print,"Dec Sec: ",DecS
-                                print,""
-
 
                             ; Print the selected source and its info to the GDLSearch file. This is not printed to screen.		
 
@@ -254,7 +242,7 @@ close, /all
 
                             ; Print titles for the displayed info
 
-                                print," Line ------- Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
+                                print," Name ------- RAh ------- RAm ------- RAs ------- DecD ------- DecM ------- DecS "
 
                             ; If a range is entered do this
                             
@@ -606,7 +594,7 @@ close, /all
 
                     endrep until end_Ref4 eq 0				; End repeat from very beginning if user chooses not to start over
 
-                    JOURNAL								; End journal entries
+                    ;JOURNAL								; End journal entries
 
                 ; Makes sure the user knows where to find the files that log what happened in their session
                 ; Warn them that they will be overwritten with every new session
@@ -752,8 +740,9 @@ close, /all
                             print,"Looking South At This Time, Sources With An RA Hour Between The Following Two Values Will Be Visible. "
                             print,"RA To The East ",floor(RA_e)
                             print,"RA To The West ",floor(RA_w)
+                            print,""
 
-                    endif               ; Ends if the observation is not in Daylight Saving Time
+                    endif               ; Ends if Time Mode is 0
 
                 ; If Time Mode 1 is picked do this
 
@@ -876,6 +865,9 @@ close, /all
 
             endif                       ; End if Search Option 2 is picked
 
+;print,"RA_e:", RA_e
+;print,"RA_w:", RA_w
+
         repeat begin
             print,"Would You Like To Return To The Home Menu?"
             read,over,prompt="|1 - Yes| |0 - No| "
@@ -898,9 +890,9 @@ close, /all
 
             repeat begin
                 print,"What Would You Like To Calculate?"
-                read,mode,prompt="|1 - Day of Year|  |2 - Declination of the Mean Sun|  |3 - Right Ascension of the Mean Sun| "
+                read,mode,prompt="|1 - Day of Year|  |2 - Declination of the Mean Sun|  |3 - Right Ascension of the Mean Sun|  |4 - Telescope Calculations| "
                 print,""
-            endrep until (mode ge 1) && (mode le 3)
+            endrep until (mode ge 1) && (mode le 4)
 
         ; If Calculation Mode 1 is picked do this
 
@@ -1124,6 +1116,81 @@ close, /all
                 endrep until mode le 2 && mode ge 1         ; End repeat for the beginning question
 
             endif                           ; End if mode 3 is picked
+
+                        ; If mode 4 is picked do this
+
+                            if mode eq 4 then begin
+
+                            ; Repeats the choice until the user picks one on the menu
+
+                                repeat begin
+                                    print,"What Would You Like To Calculate? "
+                                    read,tele_choice,prompt="|1 - Angular Magnification| |2 - Angular Resolution|  |3 - Focal Ratio|  |4 - Snell's Law Solver For Angle Of Refraction| "
+                                    print,""
+                                endrep until (tele_choice ge 1) && (tele_choice le 4)
+
+                            ; If tele_choice is 1 do this
+                                if tele_choice eq 1 then begin
+                                    read,f_obj,prompt="What Is The Focal Length Of The Objective Mirror or Lens? "
+                                    print,""
+                                    read,f_eye,prompt="What Is The Focal Length Of The Eyepiece Being Used? "
+                                    print,""
+                                    m = f_obj / f_eye
+                                    print,"The Angular Magnification For Your Combination Of Focal Lengths Is: "
+                                    print,m
+                                    print,""
+                                endif           ; End if tele_choice is 1
+
+                            ; If tele_choice is 2 do this
+
+                                if tele_choice eq 2 then begin
+                                    read,L,prompt="What Is The Minimum Separation Between Objects That Can Be Resolved? "
+                                    print,""
+                                    read,distance,prompt="What Is The Distance Between The Observer And The Source? "
+                                    print,""
+                                    ang_res = L / distance
+                                    print,"The Angular Resolution Of The Telescope Is: "
+                                    print,ang_res
+                                    print,""
+                                endif           ; End if tele_choice is 2
+
+                            ; If tele_choice is 3 do this
+
+                                if tele_choice eq 3 then begin
+                                    read,f_length,prompt="What Is The Focal Length Of The Objective Mirror Or Lens? "
+                                    print,""
+                                    read,diameter,prompt="What Is The Diameter Of The Telescope Aperture? "
+                                    F = f_length / diameter
+                                    print,"The Focal Ratio Of The Telescope Is: "
+                                    print,F
+                                    print,""
+                                endif           ; End if tele_choice is 3
+
+                            ; If tele_choice is 4 do this
+
+                                if tele_choice eq 4 then begin
+                                    read,n_1,prompt="What Is The Index Of Refraction For The Material Where The Light Originates? "
+                                    print,""
+                                    read,theta_1,prompt="What Is The Degree Angle Of Incidence Of Light Rays In The Original Material? "
+                                    theta_1_rad = theta_1 * (!pi/180)
+                                    print,""
+                                    read,n_2,prompt="What Is The Index Of Refraction For The Material Where The Light Refracts? "
+                                    print,""
+                                    theta_2_rad = asin((n_1 * sin(theta_1_rad)) / n_2)
+                                    theta_2 = theta_2_rad * (180/!pi)
+                                    print,"The Angle Of Refraction For This Material In Degrees Is: "
+                                    print,theta_2
+                                    print,"The Angle Of Refraction For This Material In Radians Is: "
+                                    print,theta_2_rad
+                                    print,""
+                                    
+                                endif           ; End if tele_choice is 4
+
+                            endif               ; End if mode 4 is picked
+
+
+
+
 
         ; Ask the user if they want to start over
         ; Repeats until the user picks an available option
